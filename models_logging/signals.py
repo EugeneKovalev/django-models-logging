@@ -31,20 +31,28 @@ def save_model(sender, instance, using, **kwargs):
         diffs = get_changed_data(instance)
         if diffs:
             action = ADDED if kwargs.get('created') else CHANGED
-            _create_changes(instance, using, action)
+            _create_changes(instance, using, action, uuid=kwargs.get('uuid'))
 
 
 def delete_model(sender, instance, using, **kwargs):
     if not _local.ignore(sender, instance):
-        _create_changes(instance, using, DELETED)
+        _create_changes(instance, using, DELETED, uuid=kwargs.get('uuid'))
 
 
-def _create_changes(object, using, action):
+def _create_changes(object, using, action, uuid=None):
+    """
+        Creates a `Change` instance
+        :param object: an object which undergone the "action"
+        :param using: a database associated with the object
+        :param action: action performed to the object `created`/`changed`/`deleted`
+        :param uuid: used to mark bulk actions
+    """
     changed_data = json.dumps(get_changed_data(object, action), cls=JSON_ENCODER)
     user_id = _local.user.pk if _local.user and _local.user.is_authenticated else None
-    content_type_id = ContentType.objects.using(using).get_for_model(object._meta.model).pk
+    content_type_id = ContentType.objects.get_for_model(object._meta.model).pk
     data = {'db': using, 'object_repr': force_text(object), 'action': action, 'user_id': user_id,
-            'changed_data': changed_data, 'object_id': object.pk, 'content_type_id': content_type_id}
+            'changed_data': changed_data, 'object_id': object.pk, 'content_type_id': content_type_id,
+            'uuid': uuid}
     if MERGE_CHANGES and 'models_logging.middleware.LoggingStackMiddleware' in MIDDLEWARES:
         key = (object.pk, content_type_id)
         old_action = _local.stack_changes.get(key, {}).get('action')
