@@ -41,16 +41,18 @@ def model_to_dict(instance, action=None):
 
 
 def get_changed_data(obj, action=CHANGED):
+    trackable_fields = getattr(getattr(obj, 'ModelLogging', object), 'trackable_fields', None)
+
     d1 = model_to_dict(obj, action)
     if action == DELETED:
-        return [{'field': k, 'values': {'old': v}} for k, v in d1.items()]
+        return [{'field': k, 'values': {'old': v}} for k, v in d1.items() if not trackable_fields or (trackable_fields and k in trackable_fields)]
     else:
         d2 = obj.__attrs
         return [
             {
                 'field': k,
                 'values': {'old': d2[k] if action == CHANGED else None, 'new': v}
-            } for k, v in d1.items() if v != d2[k]
+            } for k, v in d1.items() if (not trackable_fields or (trackable_fields and k in trackable_fields)) and v != d2[k]
         ]
 
 
