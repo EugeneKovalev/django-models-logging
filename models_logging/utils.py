@@ -1,4 +1,5 @@
 # Helpers
+import itertools
 from contextlib import contextmanager
 
 from django.core.exceptions import ImproperlyConfigured
@@ -96,10 +97,14 @@ def create_revision_with_changes(changes):
     :param changes: _local.stack_changes
     :return:
     """
-    comment = ', '.join([v['object_repr'] for v in changes])
+    merged_changes = [_ for _ in changes if not isinstance(_, list)] + list(itertools.chain(*[_ for _ in changes if isinstance(_, list)]))
+
+    comment = ', '.join({v['object_repr'] for v in merged_changes})
     rev = Revision.objects.create(comment='Applied changes to: %s' % comment)
+
     bulk = []
-    for data in changes:
+    for data in merged_changes:
         data['revision_id'] = rev.id
         bulk.append(Change(**data))
+
     Change.objects.bulk_create(bulk)

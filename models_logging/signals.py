@@ -39,7 +39,7 @@ def delete_model(sender, instance, using, **kwargs):
         _create_changes(instance, using, DELETED, uuid=kwargs.get('uuid'))
 
 
-def _create_changes(object, using, action, uuid=None):
+def _create_changes(instance, using, action, uuid=None):
     """
         Creates a `Change` instance
         :param object: an object which undergone the "action"
@@ -47,17 +47,30 @@ def _create_changes(object, using, action, uuid=None):
         :param action: action performed to the object `created`/`changed`/`deleted`
         :param uuid: used to mark bulk actions
     """
-    changed_data = json.dumps(get_changed_data(object, action), cls=JSON_ENCODER)
+    changed_data = json.dumps(get_changed_data(instance, action), cls=JSON_ENCODER)
     user_id = _local.user.pk if _local.user and _local.user.is_authenticated else None
-    content_type_id = ContentType.objects.get_for_model(object._meta.model).pk
-    data = {'db': using, 'object_repr': force_text(object), 'action': action, 'user_id': user_id,
-            'changed_data': changed_data, 'object_id': object.pk, 'content_type_id': content_type_id,
+    content_type_id = ContentType.objects.get_for_model(instance._meta.model).pk
+    data = {'db': using, 'object_repr': force_text(instance), 'action': action, 'user_id': user_id,
+            'changed_data': changed_data, 'object_id': instance.pk, 'content_type_id': content_type_id,
             'uuid': uuid}
     if MERGE_CHANGES and 'models_logging.middleware.LoggingStackMiddleware' in MIDDLEWARES:
-        key = (object.pk, content_type_id)
+        key = (instance.pk, content_type_id)
         old_action = _local.stack_changes.get(key, {}).get('action')
         if old_action == ADDED:
             data['action'] = ADDED
+
+        if data['action'] == CHANGED:
+            divide_on_update = getattr(getattr(instance, 'ModelLogging', object), 'divide_on_update', False)
+            if divide_on_update:
+                _local.stack_changes[key] = [{**data, **{'changed_data': [_]}} for _ in  json.loads(data['changed_data'])]
+                return
         _local.stack_changes[key] = data
     else:
+        if data['action'] == CHANGED:
+            divide_on_update = getattr(getattr(instance, 'ModelLogging', object), 'divide_on_update', False)
+            if divide_on_update:
+                Change.objects.bulk_create([
+                    Change(**{**data, **{'changed_data': [_]}}) for _ in json.loads(data['changed_data'])
+                ])
+                return
         Change.objects.using(using).create(**data)
