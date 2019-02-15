@@ -28,10 +28,14 @@ def init_model_attrs(sender, instance, **kwargs):
 
 def save_model(sender, instance, using, **kwargs):
     if not _local.ignore(sender, instance):
-        diffs = get_changed_data(instance)
-        if diffs:
-            action = ADDED if kwargs.get('created') else CHANGED
-            _create_changes(instance, using, action, uuid=kwargs.get('uuid'))
+        action = ADDED if kwargs.get('created') else CHANGED
+        ignore_on_create = getattr(getattr(instance, 'ModelLogging', object), 'ignore_on_create', False)
+        ignore_on_update = getattr(getattr(instance, 'ModelLogging', object), 'ignore_on_update', False)
+
+        if (action == ADDED and not ignore_on_create) or (action == CHANGED and not ignore_on_update):
+            diffs = get_changed_data(instance)
+            if diffs:
+                _create_changes(instance, using, action, uuid=kwargs.get('uuid'))
 
 
 def delete_model(sender, instance, using, **kwargs):
@@ -62,7 +66,7 @@ def _create_changes(instance, using, action, uuid=None):
         if data['action'] == CHANGED:
             divide_on_update = getattr(getattr(instance, 'ModelLogging', object), 'divide_on_update', False)
             if divide_on_update:
-                _local.stack_changes[key] = [{**data, **{'changed_data': [_]}} for _ in  json.loads(data['changed_data'])]
+                _local.stack_changes[key] = [{**data, **{'changed_data': json.dumps([_])}} for _ in  json.loads(data['changed_data'])]
                 return
         _local.stack_changes[key] = data
     else:
@@ -70,7 +74,7 @@ def _create_changes(instance, using, action, uuid=None):
             divide_on_update = getattr(getattr(instance, 'ModelLogging', object), 'divide_on_update', False)
             if divide_on_update:
                 Change.objects.bulk_create([
-                    Change(**{**data, **{'changed_data': [_]}}) for _ in json.loads(data['changed_data'])
+                    Change(**{**data, **{'changed_data': json.dumps([_])}}) for _ in json.loads(data['changed_data'])
                 ])
                 return
         Change.objects.using(using).create(**data)
