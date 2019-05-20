@@ -35,22 +35,23 @@ def save_model(sender, instance, using, **kwargs):
         if (action == ADDED and not ignore_on_create) or (action == CHANGED and not ignore_on_update):
             diffs = get_changed_data(instance)
             if diffs:
-                _create_changes(instance, using, action)
+                _create_changes(instance, using, action, uuid=kwargs.get('uuid'))
 
 
 def delete_model(sender, instance, using, **kwargs):
     if not _local.ignore(sender, instance):
         ignore_on_delete = getattr(getattr(instance, 'Logging', object), 'ignore_on_delete', False)
         if not ignore_on_delete:
-            _create_changes(instance, using, DELETED)
+            _create_changes(instance, using, DELETED, uuid=kwargs.get('uuid'))
 
 
-def _create_changes(instance, using, action):
+def _create_changes(instance, using, action, uuid=None):
     """
     Creates a `Change` instance
     :param instance: an object which undergone the "action"
     :param using: a database associated with the object
     :param action: action performed to the object `created`/`changed`/`deleted`
+    :param uuid: used to mark multiple actions of the same origin
     """
     changed_data = json.dumps(get_changed_data(instance, action), cls=JSON_ENCODER)
     user_id = _local.user.pk if _local.user and _local.user.is_authenticated else None
@@ -64,6 +65,7 @@ def _create_changes(instance, using, action):
         'changed_data': changed_data,
         'object_id': instance.pk,
         'content_type_id': content_type_id,
+        'uuid': uuid
     }
 
     if MERGE_CHANGES and 'models_logging.middleware.LoggingStackMiddleware' in MIDDLEWARES:
