@@ -73,6 +73,13 @@ def _create_changes(instance, using, action, uuid=None):
         old_action = _local.stack_changes.get(key, {}).get('action')
         if old_action == ADDED:
             data['action'] = ADDED
+
+        if data['action'] == CHANGED:
+            divide_on_update = getattr(getattr(instance, 'ModelLogging', object), 'divide_on_update', False)
+            if divide_on_update:
+                _local.stack_changes[key] = [{**data, **{'changed_data': json.dumps([_])}} for _ in json.loads(data['changed_data'])]
+                return
+
         _local.stack_changes[key] = data
     else:
         if data['action'] == CHANGED:
