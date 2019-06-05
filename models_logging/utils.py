@@ -47,7 +47,7 @@ def get_changed_data(obj, action=CHANGED):
 
     d1 = model_to_dict(obj, action)
     if action == DELETED:
-        return [
+        result = [
             {
                 'field': k,
                 'values': {'old': v}
@@ -64,17 +64,17 @@ def get_changed_data(obj, action=CHANGED):
                     'values': {'old': d2[k] if action == CHANGED else None, 'new': v}
                 })
 
-        if result:
-            tracked_fields = [_['field'] for _ in result]
+    if result:
+        tracked_fields = [_['field'] for _ in result]
 
-            for field_name in always_show:
-                if field_name not in tracked_fields:
-                    result.append({
-                        'field': field_name,
-                        'values': {'old': d1[field_name], 'new': d1[field_name]}
-                    })
+        for field_name in always_show:
+            if field_name not in tracked_fields:
+                result.append({
+                    'field': field_name,
+                    'values': {'old': d1[field_name], 'new': d1[field_name]}
+                })
 
-        return result
+    return result
 
 
 @contextmanager
