@@ -11,6 +11,7 @@ class _Local(local):
     """
     def __init__(self):
         self.user = None
+        self.client_id = None
         self.ignore_changes = False
         self.stack_changes = {}
 

@@ -12,6 +12,7 @@ class LoggingStackMiddleware(MiddlewareMixin):
 
     def process_request(self, request):
         _local.user = request.user
+        _local.client_id = request.session.get('demandbase_account_id', 5)
 
     def process_response(self, request, response):
         if MERGE_CHANGES and _local.stack_changes:

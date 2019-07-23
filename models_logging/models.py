@@ -63,6 +63,7 @@ class Change(models.Model):
     revision = models.ForeignKey(Revision, blank=True, null=True, verbose_name='to revision', on_delete=models.CASCADE)
     action = models.CharField(_("Action"), choices=ACTIONS, help_text=_('added|changed|deleted'), max_length=7)
     uuid = models.UUIDField(help_text='used to mark multiple actions of the same origin', null=True)
+    client_id = models.IntegerField(null=True)
 
     def __str__(self):
         return "Changes %s of %s <%s>" % (self.id, self.object_repr, self.date_created.strftime('%Y-%m-%d %H:%M:%S.%f'))

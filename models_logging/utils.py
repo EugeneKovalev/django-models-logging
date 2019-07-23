@@ -131,6 +131,7 @@ def create_revision_with_changes(changes):
     bulk = []
     for data in merged_changes:
         data['revision_id'] = rev.id
+        data['client_id'] = _local.client_id
         bulk.append(Change(**data))
 
     Change.objects.using(LOGGING_WRITE_DATABASE or using).bulk_create(bulk)
