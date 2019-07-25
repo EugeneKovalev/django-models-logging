@@ -62,6 +62,7 @@ def _create_changes(instance, using, action, uuid=None):
         'object_repr': force_text(instance),
         'action': action,
         'user_id': user_id,
+        'client_id': _local.client_id,
         'changed_data': changed_data,
         'object_id': instance.pk,
         'content_type_id': content_type_id,
